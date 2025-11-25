@@ -1,0 +1,107 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: frontend
+  namespace: ai-voice-assistant
+  labels:
+    app: frontend
+spec:
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+  output:
+    to:
+      kind: ImageStreamTag
+      name: frontend:latest
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: frontend
+  namespace: ai-voice-assistant
+  labels:
+    app: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: ai-voice-assistant
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: image-registry.openshift-image-registry.svc:5000/ai-voice-assistant/frontend:latest
+          imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: VITE_ORCHESTRATOR_URL
+              value: "https://orchestrator-ai-voice-assistant.apps.ocp.4knvm.sandbox1854.opentlc.com/turn"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /tmp
+      # Map service/route port 80 to container port 8080
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: ai-voice-assistant
+  labels:
+    app: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: frontend
+  namespace: ai-voice-assistant
+  labels:
+    app: frontend
+spec:
+  to:
+    kind: Service
+    name: frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge

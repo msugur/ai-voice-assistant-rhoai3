@@ -1,0 +1,77 @@
+apiVersion: machine.openshift.io/v1beta1
+kind: MachineSet
+metadata:
+  name: ocp-tb8c9-gpu-us-east-2b
+  namespace: openshift-machine-api
+  labels:
+    machine.openshift.io/cluster-api-cluster: ocp-tb8c9
+  annotations:
+    machine.openshift.io/GPU: "1"
+    machine.openshift.io/memoryMb: "65536"
+    machine.openshift.io/vCPU: "16"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      machine.openshift.io/cluster-api-cluster: ocp-tb8c9
+      machine.openshift.io/cluster-api-machineset: ocp-tb8c9-gpu-us-east-2b
+  template:
+    metadata:
+      labels:
+        machine.openshift.io/cluster-api-cluster: ocp-tb8c9
+        machine.openshift.io/cluster-api-machine-role: worker
+        machine.openshift.io/cluster-api-machine-type: worker
+        machine.openshift.io/cluster-api-machineset: ocp-tb8c9-gpu-us-east-2b
+    spec:
+      providerSpec:
+        value:
+          apiVersion: machine.openshift.io/v1beta1
+          kind: AWSMachineProviderConfig
+          ami:
+            id: ami-082a55a580d5538ed
+          instanceType: g6.4xlarge
+          placement:
+            availabilityZone: us-east-2b
+            region: us-east-2
+          blockDevices:
+            - ebs:
+                encrypted: true
+                iops: 0
+                volumeSize: 1500
+                volumeType: gp3
+                kmsKey:
+                  arn: ""
+          iamInstanceProfile:
+            id: ocp-tb8c9-worker-profile
+          subnet:
+            filters:
+              - name: tag:Name
+                values:
+                  - ocp-tb8c9-subnet-private-us-east-2b
+          securityGroups:
+            - filters:
+                - name: tag:Name
+                  values:
+                    - ocp-tb8c9-node
+            - filters:
+                - name: tag:Name
+                  values:
+                    - ocp-tb8c9-lb
+          credentialsSecret:
+            name: aws-cloud-credentials
+          userDataSecret:
+            name: worker-user-data
+          deviceIndex: 0
+          tags:
+            - name: kubernetes.io/cluster/ocp-tb8c9
+              value: owned
+            - name: Stack
+              value: project openshift-cluster-4knvm
+            - name: config
+              value: openshift-cluster
+            - name: guid
+              value: 4knvm
+            - name: owner
+              value: unknown
+            - name: uuid
+              value: 6969f62f-12a3-534d-8d7f-6bf202ccd084

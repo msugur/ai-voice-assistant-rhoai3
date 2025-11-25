@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+  namespace: ai-voice-assistant
+  labels:
+    app: orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: image-registry.openshift-image-registry.svc:5000/ai-voice-assistant/orchestrator:latest
+          imagePullPolicy: Always
+          env:
+            - name: WHISPER_URL
+              value: "https://whisper-asr-ai-voice-assistant.apps.ocp.4knvm.sandbox1854.opentlc.com/asr"
+            - name: LLM_URL
+              value: "http://llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local/v1/models/llama-32-3b-instruct:predict"
+            - name: PIPER_HOST
+              value: "piper-tts.ai-voice-assistant.svc.cluster.local"
+            - name: PIPER_PORT
+              value: "10200"
+            - name: LLM_MAX_TOKENS
+              value: "512"
+            - name: LLM_TEMPERATURE
+              value: "0.4"
+            - name: SYSTEM_PROMPT
+              value: "You are a concise telco sales assistant. You help customers pick phones, plans, and family plans, and estimate costs. Use provided context when available. If you lack details, ask one short clarifying question. Keep answers under 4 sentences."
+          ports:
+            - containerPort: 9001
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 9001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 9001
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator
+  namespace: ai-voice-assistant
+  labels:
+    app: orchestrator
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9001
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: orchestrator
+  namespace: ai-voice-assistant
+  labels:
+    app: orchestrator
+spec:
+  to:
+    kind: Service
+    name: orchestrator
+  port:
+    targetPort: http
+  tls:
+    termination: edge

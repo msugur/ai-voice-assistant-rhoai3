@@ -1,0 +1,13 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: whisper-asr
+  namespace: ai-voice-assistant
+spec:
+  to:
+    kind: Service
+    name: whisper-asr
+  port:
+    targetPort: http
+  tls:
+    termination: edge

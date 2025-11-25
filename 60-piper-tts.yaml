@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: piper-tts
+  namespace: ai-voice-assistant
+  labels:
+    app: piper-tts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: piper-tts
+  template:
+    metadata:
+      labels:
+        app: piper-tts
+    spec:
+      containers:
+        - name: piper
+          image: image-registry.openshift-image-registry.svc:5000/ai-voice-assistant/piper-custom:latest
+          imagePullPolicy: Always
+          env:
+            - name: PIPER_VOICE
+              value: en_US-amy-low
+          args:
+            - bash
+            - /app/run.sh
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          ports:
+            - containerPort: 10200
+              name: tcp
+            - containerPort: 8080
+              name: http
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: piper-tts
+  namespace: ai-voice-assistant
+  labels:
+    app: piper-tts
+spec:
+  selector:
+    app: piper-tts
+  ports:
+    - name: tcp
+      port: 10200
+      targetPort: 10200
+      protocol: TCP
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP

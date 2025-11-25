@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper-asr
+  namespace: ai-voice-assistant
+  labels:
+    app: whisper-asr
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whisper-asr
+  template:
+    metadata:
+      labels:
+        app: whisper-asr
+    spec:
+      nodeSelector:
+        ai-role: asr
+      containers:
+        - name: whisper
+          image: image-registry.openshift-image-registry.svc:5000/ai-voice-assistant/whisper-custom:latest
+          imagePullPolicy: Always
+          env:
+            - name: WHISPER_MODEL
+              value: large-v3
+            - name: ASR_ENGINE
+              value: whisper
+            - name: HF_HOME
+              value: /cache
+          ports:
+            - containerPort: 9000
+              name: http
+          resources:
+            requests:
+              cpu: "2"
+              memory: 8Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "4"
+              memory: 12Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: cache
+              mountPath: /cache
+      volumes:
+        - name: cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper-asr
+  namespace: ai-voice-assistant
+  labels:
+    app: whisper-asr
+spec:
+  selector:
+    app: whisper-asr
+  ports:
+    - name: http
+      port: 80
+      targetPort: 9000
+      protocol: TCP
+  type: ClusterIP
